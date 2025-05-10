@@ -5,7 +5,7 @@ const FONT_CACHE_NAME = 'site-font-v1';
 const APEX_CACHE_NAME = 'site-apex-v1';
 
 const assets = [
-  '/pwa-video-player-opodo/',
+  '/pwa-video-player/',
   'index.html',
   'sw-installed.html',
   'js/app.js',
