@@ -681,6 +681,8 @@ const fileToPlaylistSrc = file => {
     sources: [{ src: file.VIDEO_URL, type: 'video/mp4' }],
     isHivestack: file.HIVESTACK_YN,
     hivestackUrl: file.API_URL,
+    vistarUrl: file.VISTAR_URL,
+    vistarParams: file.VISTAR_PARAMS,
     isUrl: file.URL_YN,
     deviceUrl: file.DEVICE_URL,
     runningTime: file.RUNNING_TIME,
