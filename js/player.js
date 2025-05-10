@@ -1,5 +1,5 @@
 const VIDEO_CACHE_NAME = 'site-video-v4';
-const DEVICE_ID_AUTH = '5CAE46D0460AFC9035AFE9AE32CD146539EDF83B';
+const COMPANY_ID_AUTH = '2085735F0B4CC74DF542A8A34B48844D4ABC7851';
 
 /**
  * 전달받은 deviceId 값이 유효할 경우 player 초기화
@@ -8,7 +8,7 @@ const DEVICE_ID_AUTH = '5CAE46D0460AFC9035AFE9AE32CD146539EDF83B';
  */
 const setDeviceId = async deviceId => {
   const headers = {
-    auth: DEVICE_ID_AUTH,
+    auth: COMPANY_ID_AUTH,
     device_id: deviceId,
   };
 
@@ -291,32 +291,64 @@ player.on('loadeddata', async function () {
   const previousIndex = this.playlist.previousIndex();
 
   try {
-    if (playlist[nextIndex].isHivestack === 'Y') {
-      const hivestackInfo = await getUrlFromHS(playlist[nextIndex].hivestackUrl);
+    const nextItem = playlist[nextIndex];
+
+    // HIVESTACK 광고 미리 요청
+    if (nextItem.isHivestack === 'Y') {
+      const hivestackInfo = await getUrlFromHS(nextItem.hivestackUrl);
       console.log('hivestackInfo', hivestackInfo);
       if (hivestackInfo.success) {
         try {
-          await axios.get(hivestackInfo.videoUrl);
-          playlist[nextIndex].sources[0].src = hivestackInfo.videoUrl;
-          playlist[nextIndex].reportUrl = hivestackInfo.reportUrl;
-          playlist[nextIndex].report.HIVESTACK_URL = hivestackInfo.videoUrl;
+          await axios.get(hivestackInfo.videoUrl); // 사전 로딩
+          nextItem.sources[0].src = hivestackInfo.videoUrl;
+          nextItem.reportUrl = hivestackInfo.reportUrl;
+          nextItem.report.HIVESTACK_URL = hivestackInfo.videoUrl;
         } catch (error) {
           console.log('error on fetching hivestack url');
         }
       }
     }
-    if (playlist[previousIndex].isHivestack === 'Y' && previousIndex != nextIndex) {
-      playlist[previousIndex].sources[0].src = null;
-      playlist[previousIndex].reportUrl = null;
-      playlist[previousIndex].report.HIVESTACK_URL = null;
+
+    // VISTAR 광고 미리 요청
+    if (nextItem.isHivestack === 'V') {
+      const vistarInfo = await getUrlFromVistar(nextItem.vistarUrl, nextItem.vistarParams);
+      console.log('vistarInfo', vistarInfo);
+      if (vistarInfo.success) {
+        try {
+          await axios.get(vistarInfo.videoUrl); // 사전 로딩
+          nextItem.sources[0].src = vistarInfo.videoUrl;
+          nextItem.reportUrl = vistarInfo.reportUrl;
+          nextItem.report.VISTAR_URL = vistarInfo.videoUrl;
+        } catch (error) {
+          console.log('error on fetching vistar url');
+        }
+      }
+    }
+
+    // 이전 HIVESTACK 광고 메모리 해제
+    const prevItem = playlist[previousIndex];
+    if (prevItem.isHivestack === 'Y' && previousIndex !== nextIndex) {
+      prevItem.sources[0].src = null;
+      prevItem.reportUrl = null;
+      prevItem.report.HIVESTACK_URL = null;
+    }
+
+    // 이전 VISTAR 광고 메모리 해제
+    if (prevItem.isHivestack === 'V' && previousIndex !== nextIndex) {
+      prevItem.sources[0].src = null;
+      prevItem.reportUrl = null;
+      prevItem.report.VISTAR_URL = null;
     }
   } catch (error) {
-    console.log('Error on loadeddata > getUrlFromHS');
+    console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar');
+    console.log('nextItem.isHivestack: ', nextItem.isHivestack);
   }
+
   playlist[currentIndex].report.PLAY_ON = getFormattedDate(new Date());
 
   this.playlist(playlist, currentIndex);
 });
+
 
 player.on('play', async () => {
   if (!(await isCached(player.src()))) {
@@ -568,28 +600,60 @@ async function gotoPlayableVideo(playlist, currentIndex) {
 }
 
 /**
- * hivestack 비디오일 경우 재생완료 post한 뒤 데이터베이스에 report 저장
+ * hivestack 또는 vistar 비디오일 경우 재생완료 post한 뒤 데이터베이스에 report 저장
  * 저장된지 5분 이상 경과된 report가 있을 경우 모든 report 서버로 전송
  *
  * @param { Object } currentItem playlist에서 재생 완료한 item
  */
 async function addReport(currentItem) {
-  if (currentItem.reportUrl) {
-    axios.get(currentItem.reportUrl).catch(error => {
-      console.log(error);
-    });
-    const cachedVideo = await caches.open(VIDEO_CACHE_NAME);
-    await cachedVideo.delete(currentItem.sources[0].src);
-    console.log('cache deleted', currentItem.sources[0].src);
-  }
-  let report = currentItem.report;
+  const { reportUrl, sources, report, isHivestack } = currentItem;
 
-  console.log('report', report);
-  const reportDB = await db.open();
-  if (report.PLAY_ON) {
+  let shouldSaveReport = false;
+
+  if (reportUrl) {
+    try {
+      const response = await axios.get(reportUrl);
+
+      if (isHivestack === 'V') {
+        // VISTAR: status 200일 경우에만 저장
+        if (response.status === 200) {
+          shouldSaveReport = true;
+        } else {
+          console.log(`Vistar reportUrl 호출 실패 (status: ${response.status})`);
+        }
+      } else if (isHivestack === 'Y') {
+        // HIVESTACK: 무조건 저장
+        shouldSaveReport = true;
+      }
+    } catch (error) {
+      console.log('reportUrl 호출 실패', error);
+
+      // Hivestack은 실패해도 저장해야 함
+      if (isHivestack === 'Y') {
+        shouldSaveReport = true;
+      }
+    }
+
+    // 캐시는 항상 삭제
+    try {
+      const cachedVideo = await caches.open(VIDEO_CACHE_NAME);
+      await cachedVideo.delete(sources[0].src);
+      console.log('cache deleted', sources[0].src);
+    } catch (err) {
+      console.log('cache 삭제 실패', err);
+    }
+  } else {
+    // reportUrl이 없으면 무조건 저장
+    shouldSaveReport = true;
+  }
+
+  if (shouldSaveReport && report?.PLAY_ON) {
+    const reportDB = await db.open();
     await reportDB.reports.add(report);
+    console.log('report 저장됨', report);
   }
 
+  // 5분 이상 지난 데이터가 있는 경우 전체 report 전송
   const oldDataCount = await db.reports
     .where('PLAY_ON')
     .below(getFormattedDate(addMinutes(new Date(), -5)))
@@ -599,7 +663,7 @@ async function addReport(currentItem) {
     try {
       await reportAll();
     } catch (error) {
-      console.log('Error on reportALL');
+      console.log('Error on reportAll', error);
     }
   }
 }
@@ -639,10 +703,11 @@ function getNextPlaylist() {
 /**
  * 해당하는 Date에 playlist 재생하도록 cron 등록
  * playlist에 있는 비디오가 hivestack 하나일 경우 재생 2분 전에 hivestack 광고 정보를 요청
+ * vistar 하나일 경우에도 동일하게 2분 전에 광고 정보 요청
  *
  * @param { Date } date 비디오를 재생할 날짜와 시간.
  * @param { Object } playlist 재생목록
- * @param { boolean } [isPrimary=false] true일 경우 startDate 상관없이 로직 진행
+ * @param { string } type 재생 타입 (ead, pad, rad 등)
  * @return { Cron } Cron 객체
  */
 function cronVideo(date, playlist, type) {
@@ -663,7 +728,26 @@ function cronVideo(date, playlist, type) {
         cronVideo(date, context, type);
       }
     });
-    console.log('scheduled on', before2Min);
+    console.log('scheduled on (HIVESTACK)', before2Min);
+    return job;
+  } else if (playlist.length === 1 && playlist[0].isHivestack === 'V') {
+    const before2Min = addMinutes(date, -2);
+    const job = Cron(before2Min, { maxRuns: 1, context: playlist }, async (_self, context) => {
+      const vistarInfo = await getUrlFromVistar(context[0].vistarUrl, context[0].vistarParams);
+      console.log('scheduled vistarInfo', vistarInfo);
+      if (vistarInfo.success) {
+        try {
+          await axios.get(vistarInfo.videoUrl);
+          context[0].sources[0].src = vistarInfo.videoUrl;
+          context[0].reportUrl = vistarInfo.reportUrl;
+          context[0].report.VISTAR_URL = vistarInfo.videoUrl;
+        } catch (error) {
+          console.log('error on fetching vistar url');
+        }
+        cronVideo(date, context, type);
+      }
+    });
+    console.log('scheduled on (VISTAR)', before2Min);
     return job;
   } else {
     const job = Cron(date, { maxRuns: 1, context: playlist }, async (_self, context) => {
@@ -671,7 +755,9 @@ function cronVideo(date, playlist, type) {
       console.log('schedule type', type);
       console.log('player type', player.type);
       console.log('player isEnd', player.isEnd);
+
       const queueItem = { type, playlist: context };
+
       if (type === 'ead') {
         player.playlist(context);
         player.isEnd = false;
@@ -718,6 +804,7 @@ function cronVideo(date, playlist, type) {
     return job;
   }
 }
+
 
 /**
  * playlist에 있는 비디오들을 fetching한 뒤 fetching에 성공할 경우 해당 비디오 schedule

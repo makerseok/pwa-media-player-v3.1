@@ -108,6 +108,62 @@ const getUrlFromHS = async (hivestackUrl, retry = 0) => {
 };
 
 /**
+ * vistar url에 광고 정보를 요청
+ * retry 횟수 내에서 성공할 때까지 재귀적으로 실행
+ * 실패 시 { success: false } 반환
+ *
+ * @param {string} vistarUrl 요청 대상 URL
+ * @param {Object|string} vistarParams 요청에 포함할 JSON body 데이터 (string 또는 object)
+ * @param {number} [retry=0] 현재 재시도 횟수
+ * @return {Promise<{ success: boolean, videoUrl?: string, reportUrl?: string }>} 광고 정보 객체
+ *  - success: 성공 여부
+ *  - videoUrl: 광고 동영상 URL (성공 시)
+ *  - reportUrl: 광고 조회 보고 URL (성공 시)
+ */
+const getUrlFromVistar = async (vistarUrl, vistarParams, retry = 0) => {
+  let vistarInfo = {};
+
+  if (retry > 2) {
+    vistarInfo.success = false;
+    return vistarInfo;
+  }
+
+  try {
+    // 문자열이면 JSON 파싱
+    const parsedParams = typeof vistarParams === 'string'
+      ? JSON.parse(vistarParams)
+      : vistarParams;
+
+    const requestBody = {
+      ...parsedParams,
+      display_time: Math.floor(Date.now() / 1000), // 현재 시간 (UNIX epoch)
+    };
+
+    const response = await axios.post(vistarUrl, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const ad = response?.data?.advertisement?.[0];
+
+    if (ad?.asset_url && ad?.proof_of_play_url) {
+      vistarInfo.success = true;
+      vistarInfo.videoUrl = ad.asset_url;
+      vistarInfo.reportUrl = ad.proof_of_play_url;
+    } else {
+      vistarInfo = await getUrlFromVistar(vistarUrl, vistarParams, retry + 1);
+    }
+  } catch (error) {
+    vistarInfo = await getUrlFromVistar(vistarUrl, vistarParams, retry + 1);
+  }
+
+  return vistarInfo;
+};
+
+
+
+/**
  * 서버에서 받은 data 정보 반환
  */
 const getDataFromUrl = async (url, headersObject = null) => {
