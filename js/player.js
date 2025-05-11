@@ -406,6 +406,12 @@ player.on('error', async function (e) {
   console.log('error!!!');
   const playlist = this.playlist();
   const currentIndex = this.playlist.currentIndex();
+
+  if (currentIndex === -1) {
+    console.warn('########## currentIndex === -1');
+    await gotoPlayableVideo(player.playlist(), player.playlist.currentIndex());
+  }
+
   const nextIndex = this.playlist.nextIndex();
   const currentItem = playlist[currentIndex];
   const deviceUrl = playlist[nextIndex].deviceUrl;
@@ -422,6 +428,12 @@ player.on('error', async function (e) {
 player.on('ended', async function () {
   const playlist = this.playlist();
   const currentIndex = this.playlist.currentIndex();
+
+  if (currentIndex === -1) {
+    console.warn('########## currentIndex === -1');
+    await gotoPlayableVideo(player.playlist(), player.playlist.currentIndex());
+  }
+
   const nextIndex = this.playlist.nextIndex();
   const lastIndex = this.playlist.lastIndex();
   const currentItem = playlist[currentIndex];
