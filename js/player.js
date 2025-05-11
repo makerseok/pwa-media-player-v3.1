@@ -350,9 +350,9 @@ player.on('loadeddata', async function () {
 
 
 player.on('play', async () => {
-  if (!(await isCached(player.src()))) {
-    player.pause();
-  }
+  // if (!(await isCached(player.src()))) {
+  //   player.pause();
+  // }
 
   if (!player.isVisible) {
     player.pause();
