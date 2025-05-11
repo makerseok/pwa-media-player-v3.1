@@ -145,16 +145,28 @@ const getUrlFromVistar = async (vistarUrl, vistarParams, retry = 0) => {
       },
     });
 
-    const ad = response?.data?.advertisement?.[0];
+    // optional chaining 없이 안전하게 접근
+    let ad;
+    if (
+      response &&
+      response.data &&
+      response.data.advertisement &&
+      Array.isArray(response.data.advertisement) &&
+      response.data.advertisement.length > 0
+    ) {
+      ad = response.data.advertisement[0];
+    }
 
-    if (ad?.asset_url && ad?.proof_of_play_url) {
+    if (ad && ad.asset_url && ad.proof_of_play_url) {
       vistarInfo.success = true;
       vistarInfo.videoUrl = ad.asset_url;
       vistarInfo.reportUrl = ad.proof_of_play_url;
     } else {
+      // 재귀 재시도
       vistarInfo = await getUrlFromVistar(vistarUrl, vistarParams, retry + 1);
     }
   } catch (error) {
+    // 에러 발생 시 재시도
     vistarInfo = await getUrlFromVistar(vistarUrl, vistarParams, retry + 1);
   }
 

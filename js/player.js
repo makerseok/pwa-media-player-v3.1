@@ -647,7 +647,7 @@ async function addReport(currentItem) {
     shouldSaveReport = true;
   }
 
-  if (shouldSaveReport && report?.PLAY_ON) {
+  if (shouldSaveReport && report && report.PLAY_ON) {
     const reportDB = await db.open();
     await reportDB.reports.add(report);
     console.log('report 저장됨', report);
