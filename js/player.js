@@ -317,7 +317,7 @@ player.on('loadeddata', async function () {
           await axios.get(vistarInfo.videoUrl); // 사전 로딩
           nextItem.sources[0].src = vistarInfo.videoUrl;
           nextItem.reportUrl = vistarInfo.reportUrl;
-          nextItem.report.VISTAR_URL = vistarInfo.videoUrl;
+          nextItem.report.HIVESTACK_URL = vistarInfo.videoUrl;
         } catch (error) {
           console.log('error on fetching vistar url');
         }
@@ -336,7 +336,7 @@ player.on('loadeddata', async function () {
     if (prevItem.isHivestack === 'V' && previousIndex !== nextIndex) {
       prevItem.sources[0].src = null;
       prevItem.reportUrl = null;
-      prevItem.report.VISTAR_URL = null;
+      prevItem.report.HIVESTACK_URL = null;
     }
   } catch (error) {
     console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar', error);
@@ -739,7 +739,7 @@ function cronVideo(date, playlist, type) {
           await axios.get(vistarInfo.videoUrl);
           context[0].sources[0].src = vistarInfo.videoUrl;
           context[0].reportUrl = vistarInfo.reportUrl;
-          context[0].report.VISTAR_URL = vistarInfo.videoUrl;
+          context[0].report.HIVESTACK_URL = vistarInfo.videoUrl;
         } catch (error) {
           console.log('error on fetching vistar url');
         }
