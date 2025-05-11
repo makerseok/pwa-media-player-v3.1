@@ -289,10 +289,9 @@ player.on('loadeddata', async function () {
   const currentIndex = this.playlist.currentIndex();
   const nextIndex = this.playlist.nextIndex();
   const previousIndex = this.playlist.previousIndex();
+  const nextItem = playlist[nextIndex];
 
   try {
-    const nextItem = playlist[nextIndex];
-
     // HIVESTACK 광고 미리 요청
     if (nextItem.isHivestack === 'Y') {
       const hivestackInfo = await getUrlFromHS(nextItem.hivestackUrl);
@@ -340,8 +339,8 @@ player.on('loadeddata', async function () {
       prevItem.report.VISTAR_URL = null;
     }
   } catch (error) {
-    console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar');
-    console.log('nextItem.isHivestack: ', nextItem.isHivestack);
+    console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar', error);
+    console.log('nextItem: ', nextItem);
   }
 
   playlist[currentIndex].report.PLAY_ON = getFormattedDate(new Date());
