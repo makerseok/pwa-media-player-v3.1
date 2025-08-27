@@ -740,6 +740,7 @@ const fileToPlaylistSrc = file => {
     isHivestack: file.HIVESTACK_YN,
     hivestackUrl: file.API_URL,
     vistarUrl: file.VISTAR_URL,
+    naverUrl: file.NAVER_URL,
     vistarParams: file.VISTAR_PARAMS,
     isUrl: file.URL_YN,
     deviceUrl: file.DEVICE_URL,
