@@ -173,7 +173,53 @@ const getUrlFromVistar = async (vistarUrl, vistarParams, retry = 0) => {
   return vistarInfo;
 };
 
+/**
+ * naver url에 광고 정보를 요청
+ * retry 횟수 내에서 성공할 때까지 재귀적으로 실행
+ * 실패시 { success: false } 반환
+ *
+ * @param {string} naverUrl 요청 대상 url
+ * @param {number} [retry=0] 현재 재시도 횟수
+ * @return { Promise<{ Object }> } naver 광고 정보
+ */
+const getUrlFromNaver = async (naverUrl, retry = 0) => {
+  let naverInfo = {};
 
+  // naverUrl이 adt=로 끝날 경우 timestamp 추가
+  const NAVER_URL = naverUrl.endsWith('adt=') ? naverUrl + Date.now() : naverUrl;
+  if (retry > 2) {
+    naverInfo.success = false;
+    return naverInfo;
+  }
+  const response = await axios.get(NAVER_URL);
+
+  const $xml = $.parseXML(response.data);
+  const media = $xml.getElementsByTagName('MediaFile').item(0);
+  const trackingElements = $xml.getElementsByTagName('Tracking');
+  if (!media) {
+    naverInfo = await getUrlFromNaver(naverUrl, retry + 1);
+  } else if (media.getAttribute('type') !== 'video/mp4') {
+    naverInfo = await getUrlFromNaver(naverUrl, retry + 1);
+  } else {
+    naverInfo.success = true;
+    naverInfo.videoUrl = media.textContent.trim();
+    naverInfo.reportUrl = null;
+
+    // Send GET requests to each Tracking URL and log the result (ignore failures)
+    for (let i = 0; i < trackingElements.length; i++) {
+      const trackingUrl = trackingElements.item(i).textContent.trim();
+      axios.get(trackingUrl)
+        .then(response => {
+          console.log(`Tracking URL called: ${trackingUrl}`, response.status);
+        })
+        .catch(error => {
+          console.log(`Tracking URL failed: ${trackingUrl}`, error.message);
+        });
+    }
+  }
+
+  return naverInfo;
+};
 
 /**
  * 서버에서 받은 data 정보 반환

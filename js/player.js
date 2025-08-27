@@ -324,6 +324,22 @@ player.on('loadeddata', async function () {
       }
     }
 
+    // NAVER 광고 미리 요청
+    if (nextItem.isHivestack === 'A') {
+      const naverInfo = await getUrlFromNaver(nextItem.naverUrl);
+      console.log('naverInfo', naverInfo);
+      if (naverInfo.success) {
+        try {
+          await axios.get(naverInfo.videoUrl); // 사전 로딩
+          nextItem.sources[0].src = naverInfo.videoUrl;
+          nextItem.reportUrl = naverInfo.reportUrl;
+          nextItem.report.HIVESTACK_URL = naverInfo.videoUrl;
+        } catch (error) {
+          console.log('error on fetching naver url');
+        }
+      }
+    }
+
     // 이전 HIVESTACK 광고 메모리 해제
     const prevItem = playlist[previousIndex];
     if (prevItem.isHivestack === 'Y' && previousIndex !== nextIndex) {
@@ -339,7 +355,7 @@ player.on('loadeddata', async function () {
       prevItem.report.HIVESTACK_URL = null;
     }
   } catch (error) {
-    console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar', error);
+    console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar or getUrlFromNaver', error);
     console.log('nextItem: ', nextItem);
   }
 
@@ -759,6 +775,25 @@ function cronVideo(date, playlist, type) {
       }
     });
     console.log('scheduled on (VISTAR)', before2Min);
+    return job;
+  } else if (playlist.length === 1 && playlist[0].isHivestack === 'A') {
+    const before2Min = addMinutes(date, -2);
+    const job = Cron(before2Min, { maxRuns: 1, context: playlist }, async (_self, context) => {
+      const naverInfo = await getUrlFromNaver(context[0].naverUrl);
+      console.log('scheduled naverInfo', naverInfo);
+      if (naverInfo.success) {
+        try {
+          await axios.get(naverInfo.videoUrl);
+          context[0].sources[0].src = naverInfo.videoUrl;
+          context[0].reportUrl = naverInfo.reportUrl;
+          context[0].report.HIVESTACK_URL = naverInfo.videoUrl;
+        } catch (error) {
+          console.log('error on fetching naver url');
+        }
+        cronVideo(date, context, type);
+      }
+    });
+    console.log('scheduled on (NAVER)', before2Min);
     return job;
   } else {
     const job = Cron(date, { maxRuns: 1, context: playlist }, async (_self, context) => {
