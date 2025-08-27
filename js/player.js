@@ -334,7 +334,7 @@ player.on('loadeddata', async function () {
           await axios.get(naverInfo.videoUrl); // 사전 로딩
           nextItem.sources[0].src = naverInfo.videoUrl;
           nextItem.reportUrl = naverInfo.reportUrl;
-          nextItem.report.HIVESTACK_URL = naverInfo.videoUrl;
+          nextItem.report.HIVESTACK_URL = null;
         } catch (error) {
           console.log('error on fetching naver url');
         }
@@ -794,7 +794,7 @@ function cronVideo(date, playlist, type) {
           await axios.get(naverInfo.videoUrl);
           context[0].sources[0].src = naverInfo.videoUrl;
           context[0].reportUrl = naverInfo.reportUrl;
-          context[0].report.HIVESTACK_URL = naverInfo.videoUrl;
+          context[0].report.HIVESTACK_URL = null;
         } catch (error) {
           console.log('error on fetching naver url');
         }
