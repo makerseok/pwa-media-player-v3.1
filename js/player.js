@@ -355,6 +355,13 @@ player.on('loadeddata', async function () {
       prevItem.reportUrl = null;
       prevItem.report.HIVESTACK_URL = null;
     }
+
+    // 이전 NAVER 광고 메모리 해제
+    if (prevItem.isHivestack === 'A' && previousIndex !== nextIndex) {
+      prevItem.sources[0].src = null;
+      prevItem.reportUrl = null;
+      prevItem.report.HIVESTACK_URL = null;
+    }
   } catch (error) {
     console.log('Error on loadeddata > getUrlFromHS or getUrlFromVistar or getUrlFromNaver', error);
     console.log('nextItem: ', nextItem);
